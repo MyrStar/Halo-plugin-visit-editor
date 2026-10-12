@@ -4,14 +4,13 @@ import {
   VButton,
   VCard,
   VEmpty,
-  VInput,
   VLoading,
   VPageHeader,
   VPagination,
   VSpace,
   VTag,
 } from "@halo-dev/components";
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
 import { listPostVisits, updatePostVisit, type PostVisitItem } from "../api";
 
 const items = ref<PostVisitItem[]>([]);
@@ -19,8 +18,30 @@ const total = ref(0);
 const page = ref(1);
 const size = ref(20);
 const keyword = ref("");
+const sort = ref("publishTime,desc");
 const loading = ref(false);
 const saving = ref<string | null>(null);
+
+const sortOptions = [
+  { value: "publishTime,desc", label: "最新发布" },
+  { value: "visit,desc", label: "阅读量从高到低" },
+  { value: "visit,asc", label: "阅读量从低到高" },
+];
+
+// debounce search while typing
+let searchTimer: ReturnType<typeof setTimeout> | undefined;
+watch(keyword, () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    page.value = 1;
+    fetchData();
+  }, 300);
+});
+watch(sort, () => {
+  page.value = 1;
+  fetchData();
+});
+onUnmounted(() => clearTimeout(searchTimer));
 
 // draft values being edited, keyed by post name
 const drafts = ref<Record<string, number>>({});
@@ -33,7 +54,7 @@ const hasDirty = computed(() => items.value.some((item) => dirty(item)));
 async function fetchData() {
   loading.value = true;
   try {
-    const { data } = await listPostVisits(page.value, size.value, keyword.value);
+    const { data } = await listPostVisits(page.value, size.value, keyword.value, sort.value);
     items.value = data.items;
     total.value = data.total;
     drafts.value = {};
@@ -43,11 +64,6 @@ async function fetchData() {
   } finally {
     loading.value = false;
   }
-}
-
-function onSearch() {
-  page.value = 1;
-  fetchData();
 }
 
 function onInput(item: PostVisitItem, event: Event) {
@@ -104,12 +120,17 @@ onMounted(fetchData);
     <VCard>
       <div class="toolbar">
         <div class="search">
-          <VInput
+          <input
             v-model="keyword"
-            placeholder="搜索文章标题"
-            @keyup.enter="onSearch"
+            type="search"
+            class="search-input"
+            placeholder="搜索文章标题，输入即搜"
           />
-          <VButton type="primary" @click="onSearch">搜索</VButton>
+          <select v-model="sort" class="sort-select">
+            <option v-for="opt in sortOptions" :key="opt.value" :value="opt.value">
+              {{ opt.label }}
+            </option>
+          </select>
         </div>
         <span class="hint">共 {{ total }} 篇文章</span>
       </div>
@@ -203,7 +224,35 @@ onMounted(fetchData);
 .search {
   display: flex;
   gap: 8px;
-  width: 360px;
+  align-items: center;
+}
+
+.search-input {
+  width: 260px;
+  padding: 7px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+}
+
+.sort-select {
+  padding: 7px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 14px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.sort-select:focus {
+  outline: none;
+  border-color: #2563eb;
 }
 
 .hint {

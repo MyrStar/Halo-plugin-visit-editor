@@ -10,8 +10,11 @@ import static org.springdoc.core.fn.builders.schema.Builder.schemaBuilder;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springdoc.webflux.core.fn.SpringdocRouteBuilder;
@@ -65,6 +68,8 @@ public class VisitEditorEndpoint implements CustomEndpoint {
                     .name("size").in(ParameterIn.QUERY).implementation(Integer.class))
                 .parameter(parameterBuilder()
                     .name("keyword").in(ParameterIn.QUERY).implementation(String.class))
+                .parameter(parameterBuilder()
+                    .name("sort").in(ParameterIn.QUERY).implementation(String.class))
                 .response(responseBuilder().implementation(PostVisitList.class)))
             .PUT("posts/{name}/visit", this::updateVisit, builder -> builder
                 .operationId("UpdatePostVisit")
@@ -94,6 +99,7 @@ public class VisitEditorEndpoint implements CustomEndpoint {
         final int page = request.queryParam("page").map(Integer::parseInt).orElse(1);
         final int size = request.queryParam("size").map(Integer::parseInt).orElse(20);
         final String keyword = request.queryParam("keyword").orElse(null);
+        final String sort = request.queryParam("sort").orElse("publishTime,desc");
 
         return client.listAll(Post.class, ListOptions.builder().build(), ExtensionUtil.defaultSort())
             .filter(post -> post.getMetadata().getDeletionTimestamp() == null)
@@ -101,12 +107,7 @@ public class VisitEditorEndpoint implements CustomEndpoint {
                 || StringUtils.containsIgnoreCase(post.getSpec().getTitle(), keyword))
             .collectList()
             .flatMap(posts -> {
-                var total = posts.size();
-                var from = Math.min(Math.max(page - 1, 0) * size, total);
-                var to = Math.min(from + size, total);
-                var paged = posts.subList(from, to);
-
-                var counterNames = paged.stream()
+                var counterNames = posts.stream()
                     .map(post -> counterNameOf(post.getMetadata().getName()))
                     .toList();
                 var options = ListOptions.builder()
@@ -120,15 +121,34 @@ public class VisitEditorEndpoint implements CustomEndpoint {
                             counter -> counter.getVisit() == null ? 0 : counter.getVisit());
 
                 return visitMapMono.map(visitMap -> {
-                    var items = paged.stream()
+                    var items = posts.stream()
                         .map(post -> toItem(post,
                             visitMap.getOrDefault(counterNameOf(post.getMetadata().getName()), 0)))
-                        .toList();
-                    return new PostVisitList(items, total, page, size,
+                        .collect(Collectors.toCollection(ArrayList::new));
+                    items.sort(buildComparator(sort));
+
+                    var total = items.size();
+                    var from = Math.min(Math.max(page - 1, 0) * size, total);
+                    var to = Math.min(from + size, total);
+                    return new PostVisitList(items.subList(from, to), total, page, size,
                         to < total, from > 0);
                 });
             })
             .flatMap(result -> ServerResponse.ok().bodyValue(result));
+    }
+
+    private static Comparator<PostVisitItem> buildComparator(String sort) {
+        var parts = sort.split(",");
+        var field = parts[0];
+        var desc = parts.length > 1 && "desc".equalsIgnoreCase(parts[1]);
+        Comparator<PostVisitItem> comparator = switch (field) {
+            case "visit" -> Comparator.comparingInt(PostVisitItem::visit);
+            case "title" -> Comparator.comparing(PostVisitItem::title,
+                Comparator.nullsLast(String::compareTo));
+            default -> Comparator.comparing(PostVisitItem::publishTime,
+                Comparator.nullsLast(Comparator.naturalOrder()));
+        };
+        return desc ? comparator.reversed() : comparator;
     }
 
     private Mono<ServerResponse> updateVisit(ServerRequest request) {

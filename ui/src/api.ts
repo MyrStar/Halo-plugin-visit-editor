@@ -20,9 +20,9 @@ export interface PostVisitList {
 
 const base = "/apis/visiteditor.api.halo.run/v1alpha1";
 
-export function listPostVisits(page: number, size: number, keyword?: string) {
+export function listPostVisits(page: number, size: number, keyword?: string, sort?: string) {
   return axiosInstance.get<PostVisitList>(`${base}/posts`, {
-    params: { page, size, keyword: keyword || undefined },
+    params: { page, size, keyword: keyword || undefined, sort: sort || undefined },
   });
 }
 
