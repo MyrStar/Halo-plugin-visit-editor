@@ -103,6 +103,8 @@ public class VisitEditorEndpoint implements CustomEndpoint {
 
         return client.listAll(Post.class, ListOptions.builder().build(), ExtensionUtil.defaultSort())
             .filter(post -> post.getMetadata().getDeletionTimestamp() == null)
+            // 排除回收站中的文章，与 Console 文章列表行为保持一致
+            .filter(post -> !Boolean.TRUE.equals(post.getSpec().getDeleted()))
             .filter(post -> StringUtils.isBlank(keyword)
                 || StringUtils.containsIgnoreCase(post.getSpec().getTitle(), keyword))
             .collectList()
