@@ -1,4 +1,7 @@
-# 阅读量管理（plugin-visit-editor）
+# 阅读量管理（Halo-plugin-visit-editor）
+
+> 源码仓库：https://github.com/MyrStar/Halo-plugin-visit-editor
+> 作者：[Eternal](https://iloved.top)
 
 一款 [Halo 2.x](https://www.halo.run) 插件，提供**文章阅读量的可视化管理**能力：在 Console 后台直接查看每篇文章的访问计数，并可以自由修改。
 
