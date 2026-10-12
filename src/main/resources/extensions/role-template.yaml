@@ -1,0 +1,19 @@
+apiVersion: v1alpha1
+kind: Role
+metadata:
+  name: plugin-visit-editor-role-template
+  labels:
+    halo.run/hidden: "true"
+  annotations:
+    rbac.authorization.halo.run/aggregated-to-admin: "true"
+    rbac.authorization.halo.run/module: "阅读量管理"
+    rbac.authorization.halo.run/display-name: "阅读量管理"
+    rbac.authorization.halo.run/ui-permissions: |
+      ["plugin:visit-editor:manage"]
+rules:
+  - apiGroups:
+      - visiteditor.api.halo.run
+    resources:
+      - "*"
+    verbs:
+      - "*"
