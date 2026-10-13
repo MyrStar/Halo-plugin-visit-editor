@@ -27,7 +27,7 @@ Halo 2.x 将文章访问量存储在 `Counter` 扩展（`metrics.halo.run/v1alph
 2. Halo 后台 → 插件 → 安装 → 上传 jar 并启用
 3. 左侧菜单「内容」分组下点击「阅读量管理」即可使用
 
-要求 Halo >= 2.20。
+要求 Halo >= 2.22。
 
 ## 使用
 

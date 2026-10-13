@@ -3,8 +3,8 @@ plugins {
     id "run.halo.plugin.devtools" version "0.8.0"
 }
 
-group = 'run.halo.visiteditor'
-version = '1.0.2'
+group = 'top.iloved'
+version = '1.0.3'
 
 java {
     toolchain {

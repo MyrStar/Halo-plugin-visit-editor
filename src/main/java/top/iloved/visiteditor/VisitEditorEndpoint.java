@@ -1,4 +1,4 @@
-package run.halo.visiteditor;
+package top.iloved.visiteditor;
 
 import static io.swagger.v3.oas.annotations.media.Schema.RequiredMode.REQUIRED;
 import static org.springdoc.core.fn.builders.apiresponse.Builder.responseBuilder;
@@ -31,7 +31,6 @@ import run.halo.app.extension.ExtensionUtil;
 import run.halo.app.extension.GroupVersion;
 import run.halo.app.extension.ListOptions;
 import run.halo.app.extension.ReactiveExtensionClient;
-import run.halo.app.extension.index.query.Queries;
 
 /**
  * 文章阅读量管理 API。
@@ -88,11 +87,17 @@ public class VisitEditorEndpoint implements CustomEndpoint {
     }
 
     /**
+     * Counter extension name prefix for posts, same as
+     * {@code MeterUtils.nameOf(Post.class, "")} in Halo core.
+     */
+    static final String POST_COUNTER_NAME_PREFIX = "posts.content.halo.run/";
+
+    /**
      * Counter extension name for a post, same as
      * {@code MeterUtils.nameOf(Post.class, postName)} in Halo core.
      */
     static String counterNameOf(String postName) {
-        return "posts.content.halo.run/" + postName;
+        return POST_COUNTER_NAME_PREFIX + postName;
     }
 
     private Mono<ServerResponse> listPostVisits(ServerRequest request) {
@@ -109,16 +114,13 @@ public class VisitEditorEndpoint implements CustomEndpoint {
                 || StringUtils.containsIgnoreCase(post.getSpec().getTitle(), keyword))
             .collectList()
             .flatMap(posts -> {
-                var counterNames = posts.stream()
-                    .map(post -> counterNameOf(post.getMetadata().getName()))
-                    .toList();
-                var options = ListOptions.builder()
-                    .andQuery(Queries.in("metadata.name", counterNames))
-                    .build();
-
-                Mono<Map<String, Integer>> visitMapMono = counterNames.isEmpty()
+                // 全量拉取 Counter 后在内存中按前缀过滤，避免依赖 Halo 2.22+ 的 Queries API
+                Mono<Map<String, Integer>> visitMapMono = posts.isEmpty()
                     ? Mono.just(Map.of())
-                    : client.listAll(Counter.class, options, ExtensionUtil.defaultSort())
+                    : client.listAll(Counter.class, ListOptions.builder().build(),
+                            ExtensionUtil.defaultSort())
+                        .filter(counter -> counter.getMetadata().getName()
+                            .startsWith(POST_COUNTER_NAME_PREFIX))
                         .collectMap(counter -> counter.getMetadata().getName(),
                             counter -> counter.getVisit() == null ? 0 : counter.getVisit());
 
